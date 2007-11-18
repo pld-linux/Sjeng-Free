@@ -57,7 +57,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(644,root,root,755)
 %doc AUTHORS BUGS ChangeLog NEWS README* THANKS tests/*.epd
 %config(noreplace) %verify(not md5 mtime size) %{_sysconfdir}/sjeng.rc
-%{_bindir}/*
+%attr(755,root,root) %{_bindir}/sjeng
 %dir %{_datadir}/sjeng
 %{_datadir}/sjeng/*.opn
 %{_mandir}/man6/*.6*
