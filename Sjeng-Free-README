@@ -1,0 +1,17 @@
+README for the Debian package of sjeng
+--------------------------------------
+
+File locations have been changed to adhere to the usual
+conventions. The default sjeng.rc is installed in /etc/sjeng.rc, the
+opening books are in /usr/share/games/sjeng. When sjeng is started for
+the first time, a subdirectory .sjeng is created in the user's home
+directory if it is not already present. If this directory contains a
+readable file named sjeng.rc, it will be used instead of the system
+default. Furthermore, learning files will be placed in .sjeng.
+
+This version of sjeng does not read or write any files (book,
+learning) in the current working directory, as opposed to the upstream
+version. (Except for the case, where your working directory is
+~/.sjeng or /usr/share/games/sjeng, of course...)
+
+Lukas Geyer <lukas@debian.org>
