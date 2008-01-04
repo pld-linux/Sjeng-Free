@@ -3,7 +3,7 @@ Summary(pl.UTF-8):	Program szachowy grający w wiele wariantów
 Name:		Sjeng-Free
 Version:	11.2
 Release:	1
-License:	GPL v2
+License:	GPL v2+
 Group:		Applications/Games
 Source0:	http://www.sjeng.org/ftp/%{name}-%{version}.tar.gz
 # Source0-md5:	6561e740b7af703c16701304697d2870
@@ -12,6 +12,7 @@ Source2:	%{name}-README
 Patch0:		%{name}-cleanup.patch
 Patch1:		%{name}-FHS.patch
 URL:		http://sjeng.org/
+BuildRequires:	autoconf
 BuildRequires:	automake
 BuildRequires:	gdbm-devel
 BuildRequires:	perl-base
@@ -41,11 +42,13 @@ także grać z wykorzystaniem internetowych serwerów szachowych.
 %patch1 -p1
 cp %{SOURCE2} README.PLD
 
-# (Abel) supress annoying rpmlint warning message
-%{__perl} -pi -e 's/\r//g' [[:upper:]][[:upper:]]* ChangeLog
+%{__perl} -pi -e 's/\r//g' BUGS ChangeLog README THANKS
 
 %build
-autoreconf --force --install
+%{__aclocal}
+%{__autoconf}
+%{__autoheader}
+%{__automake}
 %configure
 
 %{__make}
