@@ -1,0 +1,823 @@
+--- Sjeng-Free-11.2/book.c.deb	2001-07-16 20:04:48.000000000 +0800
++++ Sjeng-Free-11.2/book.c	2005-07-03 19:25:22.000000000 +0800
+@@ -21,6 +21,8 @@
+ 
+ */
+ 
++#include <unistd.h>
++
+ #include "sjeng.h"
+ #include "protos.h"
+ #include "extvars.h"
+--- Sjeng-Free-11.2/ecache.c.deb	2001-12-28 06:25:20.000000000 +0800
++++ Sjeng-Free-11.2/ecache.c	2005-07-03 19:25:22.000000000 +0800
+@@ -29,7 +29,7 @@
+ {
+ unsigned long stored_hash;
+ unsigned long hold_hash;
+-unsigned int score;
++long int score;
+ } ECacheType;
+ 
+ /*ECacheType ECache[ECACHESIZE];*/
+@@ -40,7 +40,7 @@
+ 
+ void storeECache(long int score)
+ {
+-  int index;
++  unsigned int index;
+ 
+   index = hash % ECacheSize;
+ 
+@@ -51,7 +51,7 @@
+ 
+ void checkECache(long int *score, int *in_cache)
+ {
+-  int index;
++  unsigned int index;
+ 
+   ECacheProbes++;
+ 
+@@ -84,7 +84,7 @@
+     exit(EXIT_FAILURE);
+   }
+   
+-  printf("Allocated %lu eval cache entries, totalling %lu bytes.\n",
++  printf("Allocated %u eval cache entries, totalling %zu bytes.\n",
+           ECacheSize, sizeof(ECacheType)*ECacheSize);
+   return;
+ }
+--- Sjeng-Free-11.2/epd.c.deb	2001-07-23 03:27:36.000000000 +0800
++++ Sjeng-Free-11.2/epd.c	2005-07-03 19:25:22.000000000 +0800
+@@ -24,6 +24,7 @@
+ #include "sjeng.h"
+ #include "protos.h"
+ #include "extvars.h"
++#include <errno.h>
+ 
+ void setup_epd_line(char* inbuff)
+ {
+@@ -243,6 +244,10 @@
+   thinktime *= 100;
+ 
+   testsuite = fopen(testname, "r");
++  if (testsuite==NULL) {
++	  fprintf(stderr, "Cannot open file %s: %s\n", testname, strerror(errno));
++	  return;
++  }
+ 
+   while (fgets(readbuff, 2000, testsuite) != NULL)
+     {
+@@ -264,8 +269,8 @@
+     //  cpu_end = clock();
+      // rdelay(2);
+      
+-     elapsed = (cpu_end-cpu_start)/(double) CLOCKS_PER_SEC;
+-     printf("Time: %f\n", elapsed);
++     // elapsed = (cpu_end-cpu_start)/(double) CLOCKS_PER_SEC;
++     // printf("Time: %f\n", elapsed);
+       
+      if (interrupt()) rinput(tempbuff, STR_BUFF, stdin);
+       
+@@ -304,7 +309,7 @@
+       
+       printf("Move ordering : %f%%\n", (((float)FHF*100)/(float)FH+1));
+       
+-      printf("Material score: %d   Eval : %d\n", Material, eval());
++      printf("Material score: %d   Eval : %ld\n", Material, eval());
+       printf("\n");
+      
+       if (!forcedwin)
+@@ -329,5 +334,6 @@
+     };
+  
+   printf("\n");
++  fclose(testsuite);
+ };
+ 
+--- Sjeng-Free-11.2/extvars.h.deb	2001-12-28 06:19:58.000000000 +0800
++++ Sjeng-Free-11.2/extvars.h	2005-07-03 19:25:22.000000000 +0800
+@@ -164,7 +164,7 @@
+ extern int havercfile;
+ extern int TTSize;
+ extern int PBSize;
+-extern int ECacheSize;
++extern unsigned int ECacheSize;
+ 
+ extern int my_rating, opp_rating;
+ extern int userealholdings;
+@@ -190,5 +190,3 @@
+ 
+ 
+ 
+-
+-
+--- Sjeng-Free-11.2/learn.c.deb	2001-09-28 18:14:13.000000000 +0800
++++ Sjeng-Free-11.2/learn.c	2005-07-03 19:25:22.000000000 +0800
+@@ -36,13 +36,13 @@
+ }
+ LearnType;
+ 
+-void Learn(int score, int best, int depth)
++void Learn(long score, int best, int depth)
+ {
+   int number = 0, next = 0;
+   LearnType draft;
+   FILE **lrnfile;
+ 
+-  printf("Learning score: %d  best: %d  depth:%d  hash: %X\n", score, best, depth, hash);
++  printf("Learning score: %ld  best: %d  depth:%d  hash: %lX\n", score, best, depth, hash);
+   
+   if (Variant == Normal)
+     {
+@@ -122,6 +122,7 @@
+   {
+       lrnfile = &lrn_losers;
+   }
++  else return; // Can this happen?
+ 
+   fseek(*lrnfile, 0, SEEK_SET);
+   fread(&number, sizeof(int), 1, *lrnfile);
+--- Sjeng-Free-11.2/leval.c.deb	2001-09-02 19:04:53.000000000 +0800
++++ Sjeng-Free-11.2/leval.c	2005-07-03 19:25:22.000000000 +0800
+@@ -120,13 +120,13 @@
+ long int losers_eval (void) {
+ 
+   /* return a score for the current middlegame position: */
+-  int srank, pawn_file, pawns[2][11], white_back_pawn[11], black_back_pawn[11];
++  int srank = 0, pawn_file = 0, pawns[2][11], white_back_pawn[11], black_back_pawn[11];
+   int isolated, backwards;
+   int i, a, j;
+   long int score = 0;
+   int in_cache;
+   int wp = 0, bp = 0;
+-  int wks, bks;
++  int wks = 0, bks = 0;
+   int wpassp = 0, bpassp = 0;
+   int wpawns = 0, bpawns = 0;
+   
+--- Sjeng-Free-11.2/moves.c.deb	2001-06-07 06:12:46.000000000 +0800
++++ Sjeng-Free-11.2/moves.c	2005-07-03 19:25:22.000000000 +0800
+@@ -31,7 +31,7 @@
+ int numb_moves;
+ static move_s *genfor;
+ 
+-int fcaptures;
++bool fcaptures;
+ int gfrom;
+ 
+ int kingcap; /* break if we capture the king */
+--- Sjeng-Free-11.2/neval.c.deb	2001-06-29 03:48:09.000000000 +0800
++++ Sjeng-Free-11.2/neval.c	2005-07-03 19:25:22.000000000 +0800
+@@ -177,7 +177,7 @@
+   int in_cache;
+   int wp = 0, bp = 0, wn = 0, bn = 0, wb = 0, bb = 0,
+     wq = 0, bq = 0, wr = 0, br = 0;
+-  int fwrook, fbrook, rwrook, rbrook;
++  int fwrook = 0, fbrook = 0, rwrook = 0, rbrook = 0;
+   int wpotential = 0, bpotential = 0, tmp;
+   
+   in_cache = 0;
+@@ -818,7 +818,7 @@
+   int in_cache;
+   int wp = 0, bp = 0, wn = 0, bn = 0, wb = 0, bb = 0,
+ 	  wq = 0, bq = 0, wr = 0, br = 0;
+-  int rbrook, fbrook, rwrook,fwrook;
++  int rbrook = 0, fbrook = 0, rwrook = 0,fwrook = 0;
+ 
+   in_cache = 0;
+   
+--- Sjeng-Free-11.2/newbook.c.deb	2001-06-07 06:12:39.000000000 +0800
++++ Sjeng-Free-11.2/newbook.c	2005-07-03 19:25:22.000000000 +0800
+@@ -43,7 +43,7 @@
+ typedef struct 
+ {
+   unsigned long played;
+-  signed long score;
++  long int score;
+ } posinfo_t;
+ 
+ typedef struct 
+@@ -118,7 +118,6 @@
+   posinfo_t *pst;
+   datum index;
+   datum data;
+-  int win = 0, loss = 0;
+   int ret;
+   
+   /* fill in the key field */
+@@ -461,7 +460,7 @@
+   int raw;
+   int num_moves, i;
+   char output[6];
+-  signed long scores[MOVE_BUFF], best_score = 0;
++  long int scores[MOVE_BUFF], best_score = 0;
+   
+   srand(time(0));
+   
+@@ -524,7 +523,7 @@
+ 			
+ 	      comp_to_coord(moves[i], output);
+ 	      
+-	      printf("Move %s: %ld times played, %d learned\n", output,
++	      printf("Move %s: %ld times played, %ld learned\n", output,
+ 		     ps->played, ps->score);
+ 	      
+ 	      if ((ps->played + ps->score) >=  PLAYTHRESHOLD)
+@@ -593,7 +592,7 @@
+ 
+ void book_learning(int result)
+ {
+-  GDBM_FILE binbook;
++  GDBM_FILE binbook = NULL;
+   hashkey_t key;
+   posinfo_t *ps;
+   datum index;
+@@ -675,7 +674,7 @@
+ 	  }
+ 
+ 		/* don't 'overlearn' */
+-	  if (abs((ps->score)+pi) < (ps->played*5))
++	  if ((unsigned long)labs((ps->score)+pi) < (ps->played*5))
+ 	  {
+       
+         printf("Learning opening %lu, played %lu, old score %ld, new score %ld\n", 
+--- Sjeng-Free-11.2/probe.c.deb	2001-09-12 17:28:18.000000000 +0800
++++ Sjeng-Free-11.2/probe.c	2005-07-03 19:25:22.000000000 +0800
+@@ -121,7 +121,8 @@
+ #endif
+ }
+ 
+-const static int EGTranslate(int sqidx)
++#ifdef USE_EGTB
++static int EGTranslate(int sqidx)
+ {
+   int r;
+ 
+@@ -129,6 +130,7 @@
+   
+   return r;
+ }
++#endif
+ 
+ int probe_egtb(void)
+ {
+--- Sjeng-Free-11.2/proof.c.deb	2001-12-28 06:52:15.000000000 +0800
++++ Sjeng-Free-11.2/proof.c	2005-07-03 19:25:22.000000000 +0800
+@@ -79,7 +79,7 @@
+ void losers_pn_eval (node_t *this);
+ 
+ unsigned char *membuff;
+-int bufftop = 0;
++unsigned int bufftop = 0;
+ 
+ void* Xmalloc(int size)
+ {
+@@ -506,7 +506,6 @@
+   int i;
+   move_s moves[MOVE_BUFF];
+   int l, num_moves;
+-  int reploop;
+   int ic;
+ 
+   if (node->expanded)
+@@ -1024,7 +1023,7 @@
+  node_t *root;
+  node_t *mostproving;
+  node_t *currentnode;
+- int leastlooked, leastlooked_l, leastlooked_i;
++ int leastlooked, leastlooked_l = 0, leastlooked_i = 0;
+  int losers;
+  int xnodecount;
+  int firsts, alternates;
+@@ -1364,7 +1363,7 @@
+ #endif
+       {
+ #ifdef PN2
+-	  printf("P: %d D: %d N: %d S: %d Mem: %2.2fM Iters: %d ", root->proof, root->disproof, nodecount, frees, (((nodecount) * sizeof(node_t) / (float)(1024*1024))), iters);
++	  printf("P: %d D: %d N: %d S: %ld Mem: %2.2fM Iters: %d ", root->proof, root->disproof, nodecount, frees, (((nodecount) * sizeof(node_t) / (float)(1024*1024))), iters);
+ 	  
+ 	  printf ("PV: ");
+ 	  
+@@ -1415,7 +1414,7 @@
+ 	}
+     };
+   
+-  printf ("P: %d D: %d N: %d S: %d Mem: %2.2fM Iters: %d MaxDepth: %d\n", root->proof, root->disproof, nodecount, frees, (((nodecount) * sizeof (node_t) / (float) (1024 * 1024))), iters,maxply);
++  printf ("P: %d D: %d N: %d S: %ld Mem: %2.2fM Iters: %d MaxDepth: %d\n", root->proof, root->disproof, nodecount, frees, (((nodecount) * sizeof (node_t) / (float) (1024 * 1024))), iters,maxply);
+ 
+   if (xb_mode && post)
+     printf ("tellics whisper proof %d, disproof %d, %d nodes, %d forwards, %d iters, highest depth %d\n", root->proof, root->disproof, nodecount, forwards, iters, maxply);
+@@ -1608,7 +1607,7 @@
+ 	}
+     };
+ 
+-  printf("P: %d D: %d N: %d S: %d Mem: %2.2fM Iters: %d\n", root->proof, root->disproof, nodecount, frees, (((nodecount) * sizeof(node_t) / (float)(1024*1024))), iters);
++  printf("P: %d D: %d N: %d S: %ld Mem: %2.2fM Iters: %d\n", root->proof, root->disproof, nodecount, frees, (((nodecount) * sizeof(node_t) / (float)(1024*1024))), iters);
+ 
+   while(currentnode != root)
+   {
+--- Sjeng-Free-11.2/protos.h.deb	2001-07-18 09:21:37.000000000 +0800
++++ Sjeng-Free-11.2/protos.h	2005-07-03 19:25:22.000000000 +0800
+@@ -67,7 +67,7 @@
+ 		
+ 
+ void push_slidE (int target);
+-long int qsearch (int alpha, int beta, int depth);
++long int qsearch (long alpha, long beta, int depth);
+ void rdelay (int time_in_s);
+ long int rdifftime (rtime_t end, rtime_t start);
+ bool remove_one (int *marker, long int move_ordering[], int num_moves);
+@@ -75,8 +75,8 @@
+ void check_piece_square (void);
+ void rinput (char str[], int n, FILE *stream);
+ rtime_t rtime (void);
+-long int search (int alpha, int beta, int depth, int is_null);
+-move_s search_root (int alpha, int beta, int depth);
++long int search (long alpha, long beta, int depth, int is_null);
++move_s search_root (long alpha, long beta, int depth);
+ void start_up (void);
+ move_s think (void);
+ void toggle_bool (bool *var);
+@@ -111,14 +111,14 @@
+ move_s choose_book_move(void);
+ move_s choose_binary_book_move(void);
+ 
+-void StoreTT(int score, int alpha, int beta, int best , int threat, int depth);
+-void QStoreTT(int score, int alpha, int beta, int best);
+-int ProbeTT(int *score, int alpha, int beta, int *best, int *threat, int *donull, int depth);
+-int QProbeTT(int *score, int alpha, int beta, int *best);
+-void LearnStoreTT(int score, unsigned nhash, unsigned hhash, int tomove, int best, int depth);
++void StoreTT(long score, long alpha, long beta, int best , int threat, int depth);
++void QStoreTT(long score, long alpha, long beta, int best);
++int ProbeTT(long *score, long alpha, long beta, int *best, int *threat, int *donull, int depth);
++int QProbeTT(long *score, long alpha, long beta, int *best);
++void LearnStoreTT(long score, unsigned nhash, unsigned hhash, int tomove, int best, int depth);
+ 
+ void LoadLearn(void);
+-void Learn(int score, int best, int depth);
++void Learn(long score, int best, int depth);
+ 
+ void pinput (int n, FILE *stream);
+ 
+@@ -170,5 +170,9 @@
+ void gen_all_tables(void);
+ int egtb(int s);
+ 
++int load_2piece(void);
++int load_3piece(int w1_man, int b1_man, int b2_man, signed char *t);
++int init_segtb(void);
++
+ #endif
+ 
+--- Sjeng-Free-11.2/rcfile.c.deb	2001-09-28 18:19:18.000000000 +0800
++++ Sjeng-Free-11.2/rcfile.c	2005-07-03 19:25:22.000000000 +0800
+@@ -21,6 +21,10 @@
+ 
+ */
+ 
++#include <pwd.h>
++#include <unistd.h>
++#include <sys/types.h>
++
+ #include "sjeng.h"
+ #include "protos.h"
+ #include "extvars.h"
+@@ -30,7 +34,7 @@
+ char line[STR_BUFF];
+ 
+ int TTSize;
+-int ECacheSize;
++unsigned int ECacheSize;
+ int PBSize;
+ 
+ int cfg_booklearn;
+@@ -100,7 +104,7 @@
+ 
+   fgets(line, STR_BUFF, rcfile);
+   while (line[0] == '#') fgets(line, STR_BUFF, rcfile);
+-  sscanf(line, "%d", &ECacheSize);
++  sscanf(line, "%u", &ECacheSize);
+ 
+   fgets(line, STR_BUFF, rcfile);
+   while (line[0] == '#') fgets(line, STR_BUFF, rcfile);
+@@ -181,6 +185,7 @@
+       
+   sprintf(setcode, "%u", setc);
+ 
++  fclose(rcfile);
+   initialize_eval();
+   alloc_hash();
+   alloc_ecache();
+--- Sjeng-Free-11.2/search.c.deb	2001-12-28 06:20:56.000000000 +0800
++++ Sjeng-Free-11.2/search.c	2005-07-03 19:25:22.000000000 +0800
+@@ -264,7 +264,7 @@
+ }
+ 
+ 
+-long int qsearch (int alpha, int beta, int depth) {
++long int qsearch (long alpha, long beta, int depth) {
+ 
+   /* perform a quiscense search on the current node using alpha-beta with
+      negamax search */
+@@ -275,9 +275,10 @@
+     move_ordering[MOVE_BUFF],
+     see_values[MOVE_BUFF];
+   bool legal_move, no_moves = TRUE;
+-  int sbest, best_score, best, delta, bound;
+-  int originalalpha;
+-  int oldtime;
++  long best_score, bound, delta;
++  int sbest, best;
++  long originalalpha;
++  long int oldtime;
+   int seev;
+   
+   pv_length[ply] = ply;
+@@ -301,7 +302,7 @@
+ 	      extendedtime = 1;
+ 	      oldtime = time_for_move;
+ 	      time_for_move += allocate_time();
+-	      printf("Extended from %d to %d, time left %d\n", oldtime,
++	      printf("Extended from %ld to %ld, time left %ld\n", oldtime,
+ 		     time_for_move, 
+ 		     time_left);
+ 	    }
+@@ -473,7 +474,7 @@
+ 
+ }
+ 
+-long int search (int alpha, int beta, int depth, int is_null) {
++long int search (long alpha, long beta, int depth, int is_null) {
+ 
+   /* search the current node using alpha-beta with negamax search */
+ 
+@@ -481,16 +482,18 @@
+   int num_moves, i, j;
+   long int score = -INF, move_ordering[MOVE_BUFF], see_values[MOVE_BUFF];
+   bool no_moves, legal_move;
+-  int bound, threat, donull, best, sbest, best_score, old_ep;
++  long int best_score, bound;
++  int threat, donull, best, sbest, old_ep;
+   bool incheck, first;
+-  int extend, fscore, fmax, selective;
++  long int fscore, fmax;
++  int extend, selective;
+   move_s kswap;
+   int ksswap;
+-  int originalalpha;
++  long originalalpha;
+   int afterincheck;
+   int legalmoves;
+   int dropcut;
+-  int oldtime;
++  long int oldtime;
+   int egscore;
+   static const int rc_index[14] = {0,1,1,2,2,5,5,3,3,4,4,2,2,0};
+   
+@@ -512,7 +515,7 @@
+ 	    extendedtime = 1;
+ 	    oldtime = time_for_move;
+ 	    time_for_move += allocate_time();
+-	    printf("Extended from %d to %d, time left %d\n", oldtime,
++	    printf("Extended from %ld to %ld, time left %ld\n", oldtime,
+ 		   time_for_move, 
+ 		   time_left);
+ 	  }
+@@ -826,11 +829,12 @@
+ 	  afterincheck = f_in_check(&moves[0], i);
+ 	  checks[ply] = afterincheck;
+ 	
+-	  if (!afterincheck && ((Variant == Normal) 
+-		             || (Variant == Suicide) 
+-			     || (Variant == Losers)) && (depth < 3) &&
+-	      (((board[moves[i].target] == wpawn) && (rank(moves[i].target) >= 6)
+-		|| ((board[moves[i].target] == bpawn) && (rank(moves[i].target) <= 3)))))
++	  if (!afterincheck 
++	      && ((Variant == Normal) || (Variant == Suicide) || (Variant == Losers))
++	      && (depth < 3)
++	      && (((board[moves[i].target] == wpawn) && (rank(moves[i].target) >= 6))
++		  || 
++		  ((board[moves[i].target] == bpawn) && (rank(moves[i].target) <= 3))))
+ 	    {
+ 	      extend++;
+ 	    };
+@@ -1066,7 +1070,7 @@
+ }
+ 
+ 
+-move_s search_root (int originalalpha, int originalbeta, int depth) {
++move_s search_root (long originalalpha, long originalbeta, int depth) {
+ 
+   /* search the root node using alpha-beta with negamax search */
+ 
+@@ -1074,7 +1078,7 @@
+   int num_moves, i, j;
+   long int root_score = -INF, move_ordering[MOVE_BUFF], see_values[MOVE_BUFF];
+   bool no_moves, legal_move, first;
+-  int alpha, beta;
++  long alpha, beta;
+   move_s kswap;
+   move_s oldbest;
+   int oldbestnum;
+@@ -1447,15 +1451,15 @@
+   
+   move_s comp_move, temp_move, old_move;
+   int i, j, k;
+-  long int elapsed, temp_score, true_score;
++  long int elapsed, temp_score = 0, true_score;
+   char postmove[STR_BUFF];
+   clock_t cpu_start, cpu_end; 
+   float et = 0;
+-  int alpha, beta;
++  long alpha, beta;
+   int tmptmp;
+   int rs;
+   move_s moves[MOVE_BUFF];
+-  int l, lastlegal, ic;
++  int l, lastlegal = 0, ic;
+   int pn_restart;
+   int num_moves;
+   char output[8];
+@@ -1632,7 +1636,7 @@
+ 
+    if (pn_restart) time_for_move = (float)time_for_move * (float)2/((float)pn_restart+1.0);
+    
+-   printf("Time for move : %d\n", time_for_move);
++   printf("Time for move : %ld\n", time_for_move);
+    
+    if (time_for_move > 50)
+      LoadLearn();
+@@ -1658,6 +1662,7 @@
+   if ((forcedwin || result) && (pn_move.target != dummy.target) 
+       && !is_analyzing)
+     {
++      cpu_start = clock();
+       comp_move = pn_move;
+     }
+   else 
+@@ -1861,7 +1866,7 @@
+ 	    break;
+ 	  }
+ 	}
+-	for (j = 0; j < num_moves; j++)
++	for (j = 0, k = 0; j < num_moves; j++)
+ 	{
+ 	    if (rootlosers[j]) k++;  
+ 	}
+@@ -1883,7 +1888,7 @@
+   }
+   elapsed = rdifftime (rtime (), start_time);
+   
+-  printf("Used time : %d\n", elapsed);
++  printf("Used time : %ld\n", elapsed);
+   
+   /* update our elapsed time_cushion: */
+   if (moves_to_tc && !is_pondering) {
+@@ -1937,7 +1942,7 @@
+ 
+       if ((et > 0) && (Variant != Bughouse))
+ 	{
+-	  printf("tellics whisper d%d %+.2f %sn: %ld qp: %.0f%% fh: %.0f%% c-x: %d r-x: %d 1-x: %d egtb: %d time: %.2f nps: %ld\n",
++	  printf("tellics whisper d%d %+.2f %sn: %ld qp: %.0f%% fh: %.0f%% c-x: %ld r-x: %ld 1-x: %ld egtb: %d time: %.2f nps: %ld\n",
+ 		 true_i_depth, (float)temp_score/100.0, postpv, nodes, 
+ 		 (((float)qnodes*100)/((float)nodes+1)),
+ 		 ((float)FHF*100)/((float)(FH+1)),
+--- Sjeng-Free-11.2/segtb.c.deb	2001-12-28 06:46:41.000000000 +0800
++++ Sjeng-Free-11.2/segtb.c	2005-07-03 19:25:22.000000000 +0800
+@@ -742,10 +742,10 @@
+ 
+ int egtb(int s)
+ {
+-  int w1_man, w2_man, b1_man, b2_man;
+-  int w1, w2, b1, b2;
++  int w1_man = 0, w2_man = 0, b1_man = 0, b2_man = 0;
++  int w1 = 0, w2 = 0, b1 = 0, b2 = 0;
+   int w_count = 0, b_count = 0;
+-  int i, t, temp, junk, bpc;
++  int i, t, temp, junk = 0, bpc;
+   signed char *table;
+ 
+   /* first figure out what kind of position we have */
+--- Sjeng-Free-11.2/seval.c.deb	2001-07-12 03:25:51.000000000 +0800
++++ Sjeng-Free-11.2/seval.c	2005-07-03 19:25:22.000000000 +0800
+@@ -121,8 +121,6 @@
+ 
+ static int black_saccers(int square)
+ {
+-  register int ndir, a_sq;
+-  register int basq, i;
+   register int f = FALSE;
+ 
+   /* for white pawn on square, any black
+@@ -148,8 +146,8 @@
+       f = TRUE;
+     }
+   else if (rank(square) == 4 &&
+-	   board[square + 35] == bpawn ||
+-	   board[square + 37] == bpawn)
++	   (board[square + 35] == bpawn ||
++	    board[square + 37] == bpawn))
+     {
+       f = TRUE;
+     }
+@@ -205,8 +203,6 @@
+   /* for black pawn on square, any black
+    * pieces that can sac themselves to it? */
+   
+-  register int ndir, a_sq;
+-  register int basq, i;
+   register int f = FALSE;
+ 
+   /* for white pawn on square, any black
+@@ -232,8 +228,8 @@
+       f = TRUE;
+     }
+   else if (rank(square) == 5 &&
+-	   board[square - 35] == wpawn ||
+-	   board[square - 37] == wpawn)
++	   (board[square - 35] == wpawn ||
++	    board[square - 37] == wpawn))
+     {
+       f = TRUE;
+     }
+@@ -298,7 +294,7 @@
+   int isolated, backwards, i, a, j;
+   long int score = 0;
+   int in_cache;
+-  int wb = 0, bb = 0, wbc, bbc;
++  int wb = 0, bb = 0, wbc = 0, bbc = 0;
+   int wk = 0, bk = 0, wr = 0, br = 0;
+   int wn = 0, bn = 0, wp = 0, bp = 0;
+   
+--- Sjeng-Free-11.2/sjeng.c.deb	2001-12-28 06:20:38.000000000 +0800
++++ Sjeng-Free-11.2/sjeng.c	2005-07-03 19:25:22.000000000 +0800
+@@ -38,7 +38,7 @@
+ #include "config.h"
+ 
+ char divider[50] = "-------------------------------------------------";
+-move_s dummy = {0,0,0,0,0};
++move_s dummy = {0,0,0,0,0,0};
+ 
+ int board[144], moved[144], ep_square, white_to_move, comp_color, wking_loc,
+   bking_loc, white_castled, black_castled, result, ply, pv_length[PV_BUFF],
+@@ -90,7 +90,7 @@
+ FILE *lrn_suicide;
+ FILE *lrn_losers;
+ 
+-int main (int argc, char *argv[]) {
++int main (void) {
+ 
+   char input[STR_BUFF], *p, output[STR_BUFF];
+   char readbuff[STR_BUFF];
+@@ -98,10 +98,10 @@
+   int depth = 4;
+   bool force_mode, show_board;
+   double nps, elapsed;
+-  clock_t cpu_start, cpu_end;
++  clock_t cpu_start = 0, cpu_end = 0;
+   move_s game_history[600];
+   move_x game_history_x[600];
+-  int is_edit_mode, edit_color;
++  int is_edit_mode, edit_color = 0;
+   int pingnum;
+   int braindeadinterface;
+   int automode;
+@@ -334,10 +371,10 @@
+ 	    
+ 	    printf("Move ordering : %f%%\n", (((float)FHF*100)/(float)(FH+1)));
+ 	    
+-	    printf("Material score: %d   Eval : %d  White hand: %d  Black hand : %d\n", 
++	    printf("Material score: %d   Eval : %ld  White hand: %d  Black hand : %d\n", 
+ 		Material, eval(), white_hand_eval, black_hand_eval);
+ 	    
+-	    printf("Hash : %X  HoldHash : %X\n", hash, hold_hash);
++	    printf("Hash : %lX  HoldHash : %lX\n", hash, hold_hash);
+ 
+ 	    /* check to see if we mate our opponent with our current move: */
+ 	    if (!result) {
+@@ -635,7 +672,7 @@
+       }
+       else if (!strcmp (input, "eval")) {
+ 	check_phase();
+-	printf("Eval: %d\n", eval());
++	printf("Eval: %ld\n", eval());
+       }
+       else if (!strcmp (input, "go")) {
+ 	comp_color = white_to_move;
+@@ -667,7 +704,7 @@
+ 	 time_cushion = 0; 
+       }
+       else if (!strncmp (input, "rating", 6)) {
+-	sscanf (input+7, "%ld %ld", &my_rating, &opp_rating);
++	sscanf (input+7, "%d %d", &my_rating, &opp_rating);
+ 	if (my_rating == 0) my_rating = 2000;
+ 	if (opp_rating == 0) opp_rating = 2000;
+       }
+@@ -729,6 +766,7 @@
+ 	    printf("Move number : %d\n", move_number);
+ 	if (move_number > 0)
+ 	  {
++	    ply = 1;
+ 	    path_x[0] = game_history_x[--move_number];
+ 	    unmake(&game_history[move_number], 0);
+ 	    reset_piece_square();
+@@ -738,10 +776,12 @@
+       else if (!strncmp (input, "remove", 5)) {
+ 	if (move_number > 1)
+ 	  {
++            ply = 1;
+ 	    path_x[0] = game_history_x[--move_number];
+ 	    unmake(&game_history[move_number], 0);
+ 	    reset_piece_square();
+ 
++	    ply = 1;
+ 	    path_x[0] = game_history_x[--move_number];
+ 	    unmake(&game_history[move_number], 0);
+ 	    reset_piece_square();
+@@ -789,7 +829,7 @@
+ 	run_epd_testsuite();
+       }
+       else if (!strncmp (input, "st", 2)) {
+-	sscanf(input+3, "%d", &fixed_time);
++	sscanf(input+3, "%ld", &fixed_time);
+ 	fixed_time = fixed_time * 100;
+       }
+       else if (!strncmp (input, "book", 4)) {
+--- Sjeng-Free-11.2/ttable.c.deb	2001-07-13 02:04:48.000000000 +0800
++++ Sjeng-Free-11.2/ttable.c	2005-07-03 19:25:22.000000000 +0800
+@@ -110,7 +110,7 @@
+ 
+ }
+ 
+-void QStoreTT(int score, int alpha, int beta, int best)
++void QStoreTT(long score, long alpha, long beta, int best)
+ {
+   unsigned long index;
+   
+@@ -134,7 +134,7 @@
+   return;
+ }
+ 
+-void StoreTT(int score, int alpha, int beta, int best, int threat, int depth)
++void StoreTT(long score, long alpha, long beta, int best, int threat, int depth)
+ {
+   unsigned long index;
+   
+@@ -216,7 +216,7 @@
+   return;
+ }
+ 
+-void LearnStoreTT(int score, unsigned nhash, unsigned hhash, int tomove, int best, int depth)
++void LearnStoreTT(long score, unsigned nhash, unsigned hhash, int tomove, int best, int depth)
+ {
+   unsigned long index;
+ 
+@@ -242,7 +242,7 @@
+ 
+ }
+ 
+-int ProbeTT(int *score, int alpha, int beta, int *best, int *threat, int *donull, int depth)
++int ProbeTT(long *score, long alpha, long beta, int *best, int *threat, int *donull, int depth)
+ {
+ 
+   unsigned long index;
+@@ -328,7 +328,7 @@
+ 
+ }
+ 
+-int QProbeTT(int *score, int alpha, int beta, int *best)
++int QProbeTT(long *score, long alpha, long beta, int *best)
+ {
+ 
+   unsigned long index;
+--- Sjeng-Free-11.2/utils.c.deb	2001-07-14 00:36:40.000000000 +0800
++++ Sjeng-Free-11.2/utils.c	2005-07-03 19:25:22.000000000 +0800
+@@ -529,7 +529,8 @@
+ 
+ void hash_extract_pv(int level, char str[])
+ {
+-  int dummy, bm;
++  int bm, dummy_int;
++  long dummy_long;
+   move_s moves[MOVE_BUFF];
+   int num_moves;
+   char output[STR_BUFF];
+@@ -538,7 +539,7 @@
+   level--;
+   if (!level) return;
+   
+-  if(ProbeTT(&dummy, 0, 0, &bm, &dummy, &dummy, 0) != HMISS)
++  if(ProbeTT(&dummy_long, 0, 0, &bm, &dummy_int, &dummy_int, 0) != HMISS)
+     {
+       gen(&moves[0]); 
+       num_moves = numb_moves;
+@@ -1342,7 +1343,7 @@
+     {
+       eval();
+       /* invalidate the ecache */
+-      hash = (++hash) % ULONG_MAX; 
++      ++hash; 
+     }
+   
+   cpu_end = clock ();

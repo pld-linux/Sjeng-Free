@@ -1,0 +1,307 @@
+--- Sjeng-Free-11.2/book.c.deb	2001-07-16 20:04:48.000000000 +0800
++++ Sjeng-Free-11.2/book.c	2005-07-03 19:43:03.000000000 +0800
+@@ -38,6 +40,10 @@
+ #define book_solid 4         /* =   */
+ #define book_murky 5         /* ?!  */
+ 
++#ifndef BOOK_PATH
++#define BOOK_PATH "/usr/share/games/sjeng"
++#endif
++
+ int init_book (void) {
+ 
+    /* simply read all the book moves into a book array.  The book will be
+@@ -63,27 +69,27 @@
+ 
+    if (Variant == Normal)
+      {
+-       if ((f_book = fopen ("normal.opn", "r")) == NULL)
++       if ((f_book = fopen (BOOK_PATH "/normal.opn", "r")) == NULL)
+ 	 return FALSE;
+      }
+    else if (Variant == Crazyhouse)
+      {
+-       if ((f_book = fopen ("zh.opn", "r")) == NULL)
++       if ((f_book = fopen (BOOK_PATH "/zh.opn", "r")) == NULL)
+ 	 return FALSE;
+      }
+    else if (Variant == Suicide)
+      {
+-       if ((f_book = fopen ("suicide.opn", "r")) == NULL)
++       if ((f_book = fopen (BOOK_PATH "/suicide.opn", "r")) == NULL)
+ 	 return FALSE;
+      }
+    else if (Variant == Losers)
+    {
+-       if ((f_book = fopen ("losers.opn", "r")) == NULL)
++       if ((f_book = fopen (BOOK_PATH "/losers.opn", "r")) == NULL)
+ 	 return FALSE;
+    }
+    else
+      {
+-       if ((f_book = fopen ("bug.opn", "r")) == NULL)
++       if ((f_book = fopen (BOOK_PATH "/bug.opn", "r")) == NULL)
+ 	 return FALSE;
+      }
+ 
+--- Sjeng-Free-11.2/rcfile.c.deb	2001-09-28 18:19:18.000000000 +0800
++++ Sjeng-Free-11.2/rcfile.c	2005-07-03 20:09:07.000000000 +0800
+@@ -26,6 +26,14 @@
+ #include "extvars.h"
+ #include "config.h"
+ 
++/* Local name is relative to user's home directory */
++#define RC_LOCALNAME  "/.sjeng/sjeng.rc"
++#ifndef SYSCONFDIR
++#define RC_GLOBALNAME "/etc/sjeng.rc"
++#else
++#define RC_GLOBALNAME SYSCONFDIR "/sjeng.rc"
++#endif
++
+ FILE *rcfile;
+ char line[STR_BUFF];
+ 
+@@ -51,8 +59,22 @@
+ {
+   int i;
+   unsigned int setc;
+-  
+-  if ((rcfile = fopen ("sjeng.rc", "r")) == NULL)
++  struct passwd *pw;
++  char rcname[STR_BUFF];
++
++  rcfile = NULL;
++  pw = getpwuid(getuid());
++  if (pw != NULL && 
++      strlen(pw->pw_dir) + strlen(RC_LOCALNAME) + 1 < STR_BUFF ) {
++  	strcpy(rcname, pw->pw_dir);
++	strcat(rcname, RC_LOCALNAME);
++	rcfile = fopen(rcname, "r");
++  }
++  if (rcfile == NULL) {
++        rcfile = fopen(RC_GLOBALNAME, "r");
++  }
++	  
++  if (rcfile == NULL)
+     {
+       printf("No configuration file!\n");
+ 
+--- Sjeng-Free-11.2/sjeng.c.deb	2001-12-28 06:20:38.000000000 +0800
++++ Sjeng-Free-11.2/sjeng.c	2005-07-03 19:25:22.000000000 +0800
+@@ -27,6 +27,11 @@
+ 
+ */
+ 
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#include <pwd.h>
++
+ #include "sjeng.h"
+ #include "protos.h"
+ #include "extvars.h"
+@@ -106,7 +111,11 @@
+   int braindeadinterface;
+   int automode;
+   rtime_t xstart_time;
+-  
++  char lrn_name[STR_BUFF];
++  int path_len;
++  struct passwd *pw;
++  struct stat st;
++
+   read_rcfile();
+   initialize_zobrist();
+  
+@@ -119,60 +128,88 @@
+   if (!init_book())
+     printf("No .OPN opening book found.\n");
+ 
+-  if ((lrn_standard = fopen ("standard.lrn", "rb+")) == NULL)
++  pw = getpwuid(getuid());
++  if (pw == NULL) {
++    perror("Unable to get home directory");
++    exit(1);
++  }
++  path_len = strlen(pw->pw_dir) + strlen("/.sjeng/");
++  if (path_len + 21 >= STR_BUFF) {
++    fprintf(stderr,"Home directory path too long\n");
++    exit(1);
++  }
++  strcpy(lrn_name, pw->pw_dir);
++  strcat(lrn_name, "/.sjeng/");
++
++  if (stat(lrn_name, &st) < 0) {
++    printf("Trying to create directory %s\n", lrn_name);
++    if (mkdir(lrn_name, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0) {
++      perror("Unable to create directory");
++      exit(1);
++    }
++  }
++
++  strcpy(lrn_name + path_len, "standard.lrn");
++  if ((lrn_standard = fopen (lrn_name, "rb+")) == NULL)
+     {
+       printf("No standard learn file.\n");
+       
+-      if ((lrn_standard = fopen ("standard.lrn", "wb+")) == NULL)
++      if ((lrn_standard = fopen (lrn_name, "wb+")) == NULL)
+ 	{
+ 	  printf("Error creating standard learn file.\n");
+ 	}
+       else
+ 	{
+ 	  fclose(lrn_standard);
+-	  lrn_standard = fopen ("standard.lrn", "rb+");
++	  lrn_standard = fopen (lrn_name, "rb+");
+ 	}
+     }
+-  if ((lrn_zh = fopen ("bug.lrn", "rb+")) == NULL)
++
++  strcpy(lrn_name + path_len, "bug.lrn");
++  if ((lrn_zh = fopen (lrn_name, "rb+")) == NULL)
+     {
+       printf("No crazyhouse learn file.\n");
+ 
+-      if ((lrn_zh = fopen ("bug.lrn", "wb+")) == NULL)
++      if ((lrn_zh = fopen (lrn_name, "wb+")) == NULL)
+ 	{
+ 	  printf("Error creating crazyhouse learn file.\n");
+ 	}
+       else
+ 	{
+ 	  fclose(lrn_zh);
+-	  lrn_zh = fopen ("bug.lrn", "rb+");
++	  lrn_zh = fopen (lrn_name, "rb+");
+ 	}
+     }
+-  if ((lrn_suicide = fopen ("suicide.lrn", "rb+")) == NULL)
++
++  strcpy(lrn_name + path_len, "suicide.lrn");
++  if ((lrn_suicide = fopen (lrn_name, "rb+")) == NULL)
+     {
+       printf("No suicide learn file.\n");
+ 
+-      if ((lrn_suicide = fopen ("suicide.lrn", "wb+")) == NULL)
++      if ((lrn_suicide = fopen (lrn_name, "wb+")) == NULL)
+ 	{
+ 	  printf("Error creating suicide learn file.\n");
+ 	}
+       else
+ 	{
+ 	  fclose(lrn_suicide);
+-	  lrn_suicide = fopen ("suicide.lrn", "rb+");
++	  lrn_suicide = fopen (lrn_name, "rb+");
+ 	}
+     }
+-  if ((lrn_losers = fopen ("losers.lrn", "rb+")) == NULL)
++
++  strcpy(lrn_name + path_len, "losers.lrn");
++  if ((lrn_losers = fopen (lrn_name, "rb+")) == NULL)
+     {
+       printf("No losers learn file.\n");
+ 
+-      if ((lrn_losers = fopen ("losers.lrn", "wb+")) == NULL)
++      if ((lrn_losers = fopen (lrn_name, "wb+")) == NULL)
+ 	{
+ 	  printf("Error creating losers learn file.\n");
+ 	}
+       else
+ 	{
+ 	  fclose(lrn_losers);
+-	  lrn_losers = fopen ("losers.lrn", "rb+");
++	  lrn_losers = fopen (lrn_name, "rb+");
+ 	}
+     }
+ 
+--- Sjeng-Free-11.2/newbook.c~	2005-07-03 20:28:23.000000000 +0800
++++ Sjeng-Free-11.2/newbook.c	2005-07-03 21:00:52.000000000 +0800
+@@ -35,6 +35,10 @@
+ #error You need the GNU DBM library (GDBM). Go to ftp.gnu.org
+ #endif
+ 
++#ifndef BOOK_PATH
++#define BOOK_PATH "/usr/share/games/sjeng"
++#endif
++
+ typedef struct 
+ {
+   unsigned long hashkey;
+@@ -465,13 +469,13 @@
+   srand(time(0));
+   
+   if (Variant == Normal)
+-    binbook = gdbm_open("nbook.bin", 16384, GDBM_READER, 0, NULL);
++    binbook = gdbm_open(BOOK_PATH "/nbook.bin", 16384, GDBM_READER, 0, NULL);
+   else if (Variant == Suicide)
+-    binbook = gdbm_open("sbook.bin", 16384, GDBM_READER, 0, NULL);
++    binbook = gdbm_open(BOOK_PATH "/sbook.bin", 16384, GDBM_READER, 0, NULL);
+   else if (Variant == Losers)
+-    binbook = gdbm_open("lbook.bin", 16384, GDBM_READER, 0, NULL);
++    binbook = gdbm_open(BOOK_PATH "/lbook.bin", 16384, GDBM_READER, 0, NULL);
+   else 
+-    binbook = gdbm_open("zbook.bin", 16384, GDBM_READER, 0, NULL);
++    binbook = gdbm_open(BOOK_PATH "/zbook.bin", 16384, GDBM_READER, 0, NULL);
+     
+   
+   if (binbook == NULL)
+--- Sjeng-Free-11.2/Makefile.am.bak	2001-09-12 17:32:27.000000000 +0800
++++ Sjeng-Free-11.2/Makefile.am	2005-07-03 21:05:34.000000000 +0800
+@@ -4,5 +4,9 @@
+                 sjeng.c utils.c newbook.c proof.c neval.c rcfile.c\
+ 		leval.c draw.c see.c probe.c segtb.c\
+ 		protos.h extvars.h sjeng.h squares.h
++
++sjeng_CFLAGS = -DBOOK_PATH="\"$(datadir)/sjeng\"" \
++	       -DSYSCONFDIR="\"$(sysconfdir)\""
++
+ EXTRA_DIST = TODO NEWS ChangeLog COPYING BUGS THANKS blob2.c sjeng.rc 
+ SUBDIRS = books tests
+--- Sjeng-Free-11.2/segtb.c.bak	2005-07-03 22:31:07.000000000 +0800
++++ Sjeng-Free-11.2/segtb.c	2005-07-03 22:55:02.000000000 +0800
+@@ -30,13 +30,17 @@
+ #define FILE(x)			   ((x) & 7)
+ #define RANK(x)			   ((x) >> 3)
+ 
++#ifndef BOOK_PATH
++#define BOOK_PATH "/usr/share/games/sjeng"
++#endif
++
+ #define TWO_PIECE_SIZE		   4096
+ #define TWO_PIECE_HASH(x,y,z)	   (((((x) << 5) | (y)) << 6) | (z))
+-#define TWO_PIECE_FILE		   "stb/2pieces.bin"
++#define TWO_PIECE_FILE		   BOOK_PATH "/stb/2pieces.bin"
+ 
+ #define THREE_PIECE_SIZE	   (64*TWO_PIECE_SIZE)
+ #define THREE_PIECE_HASH(x,y,z,w)  (((((((x) << 5) | (y)) << 6) | (z)) << 6) | (w))
+-#define THREE_PIECE_FILE	   "stb/xxx.bin"
++#define THREE_PIECE_FILE	   BOOK_PATH "/stb/xxx.bin"
+ 
+ #define TABLE_KEY(x,y,z)	   (((((x) << 3) | (y)) << 3) | (z))
+ 
+@@ -510,9 +514,9 @@
+   /* generate the filename */
+   
+   strcpy(fname, THREE_PIECE_FILE);
+-  fname[4] = xpiece_char[w1_man];
+-  fname[5] = xpiece_char[b1_man];
+-  fname[6] = xpiece_char[b2_man];
++  fname[strlen(BOOK_PATH)+5] = xpiece_char[w1_man];
++  fname[strlen(BOOK_PATH)+6] = xpiece_char[b1_man];
++  fname[strlen(BOOK_PATH)+7] = xpiece_char[b2_man];
+   
+   if(!(f = fopen(fname,"w"))) return 0;
+   
+@@ -971,9 +975,9 @@
+   /* generate the filename */
+   
+   strcpy(fname, THREE_PIECE_FILE);
+-  fname[4]= xpiece_char[w1_man];
+-  fname[5]= xpiece_char[b1_man];
+-  fname[6]= xpiece_char[b2_man];
++  fname[strlen(BOOK_PATH)+5]= xpiece_char[w1_man];
++  fname[strlen(BOOK_PATH)+6]= xpiece_char[b1_man];
++  fname[strlen(BOOK_PATH)+7]= xpiece_char[b2_man];
+   
+   if(!(f = fopen(fname,"r"))) return 0;
+   
