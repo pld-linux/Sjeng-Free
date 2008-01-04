@@ -39,7 +39,7 @@ także grać z wykorzystaniem internetowych serwerów szachowych.
 %setup -q
 %patch0 -p1
 %patch1 -p1
-cp %{SOURCE2} README.debian
+cp %{SOURCE2} README.PLD
 
 # (Abel) supress annoying rpmlint warning message
 %{__perl} -pi -e 's/\r//g' [[:upper:]][[:upper:]]* ChangeLog
