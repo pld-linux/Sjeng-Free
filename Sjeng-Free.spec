@@ -17,7 +17,7 @@ BuildRequires:	automake
 BuildRequires:	gdbm-devel
 BuildRequires:	perl-base
 Provides:	chess_backend
-Buildroot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
+BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
 Sjeng is a chess program that plays normal chess and many variants
