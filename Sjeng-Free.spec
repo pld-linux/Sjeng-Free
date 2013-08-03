@@ -2,7 +2,7 @@ Summary:	Chess program that plays many variants
 Summary(pl.UTF-8):	Program szachowy grający w wiele wariantów
 Name:		Sjeng-Free
 Version:	11.2
-Release:	1
+Release:	2
 License:	GPL v2+
 Group:		Applications/Games
 Source0:	http://www.sjeng.org/ftp/%{name}-%{version}.tar.gz
