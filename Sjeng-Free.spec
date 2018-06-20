@@ -2,7 +2,7 @@ Summary:	Chess program that plays many variants
 Summary(pl.UTF-8):	Program szachowy grający w wiele wariantów
 Name:		Sjeng-Free
 Version:	11.2
-Release:	2
+Release:	3
 License:	GPL v2+
 Group:		Applications/Games
 Source0:	http://www.sjeng.org/ftp/%{name}-%{version}.tar.gz
@@ -74,4 +74,4 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_bindir}/sjeng
 %dir %{_datadir}/sjeng
 %{_datadir}/sjeng/*.opn
-%{_mandir}/man6/*.6*
+%{_mandir}/man6/sjeng.6*
