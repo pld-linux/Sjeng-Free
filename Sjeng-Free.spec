@@ -38,8 +38,8 @@ także grać z wykorzystaniem internetowych serwerów szachowych.
 
 %prep
 %setup -q
-%patch0 -p1
-%patch1 -p1
+%patch -P0 -p1
+%patch -P1 -p1
 cp %{SOURCE2} README.PLD
 
 %{__perl} -pi -e 's/\r//g' BUGS ChangeLog README THANKS
